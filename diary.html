@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" defer></script>
+<script src="https://apis.google.com/js/api.js" defer></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -724,6 +725,8 @@
     nav { padding: 0 1rem; }
     .nav-brand { font-size: 1.15rem; }
     .nav-tab { padding: 0.4rem 0.85rem; font-size: 0.8rem; }
+    .form-actions { gap: 0.4rem; }
+    .btn { padding: 0.65rem 0.85rem; font-size: 0.82rem; }
   }
 
   @media (max-width: 480px) {
@@ -749,6 +752,8 @@
     .entry-item-body { padding: 0.75rem 1rem; }
     .entry-item-footer { padding: 0.6rem 1rem; }
     .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.72rem; border-radius: 6px; }
+    .form-actions { padding: 1rem; gap: 0.5rem; }
+    .btn { padding: 0.6rem 1rem; font-size: 0.8rem; }
 
     .year-label { font-size: 1.2rem; }
 
@@ -826,6 +831,7 @@
           <button class="filter-btn" onclick="filterEntries('🌙 Tired', this)">🌙 Tired</button>
           <button class="filter-btn" onclick="filterEntries('🌩️ Anxious', this)">🌩️ Anxious</button>
           <button class="filter-btn" onclick="filterEntries('🌧️ Sad', this)">🌧️ Sad</button>
+          <button class="filter-btn" onclick="filterEntries('😤 Angry', this)">😤 Angry</button>
         </div>
       </div>
       <button class="filter-nav-btn" id="filter-next" onclick="scrollFilters(1)">›</button>
@@ -892,6 +898,7 @@
             <button class="mood-btn" onclick="selectMood(this, '✨ Excited')">✨ Excited</button>
             <button class="mood-btn" onclick="selectMood(this, '🌧️ Sad')">🌧️ Sad</button>
             <button class="mood-btn" onclick="selectMood(this, '🔥 Motivated')">🔥 Motivated</button>
+            <button class="mood-btn" onclick="selectMood(this, '😤 Angry')">😤 Angry</button>
           </div>
         </div>
         <div class="field">
@@ -906,6 +913,15 @@
             <p style="font-size:0.78rem; margin-top:0.25rem; color:var(--text-muted)">Images, videos, PDFs, and more</p>
             <input type="file" id="file-input" multiple accept="image/*,video/*,.pdf,.doc,.docx" onchange="handleFiles(this)" />
           </div>
+          <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.75rem;">
+            <div style="flex:1; height:1px; background:var(--border);"></div>
+            <span style="font-size:0.78rem; color:var(--text-muted); font-weight:700;">or</span>
+            <div style="flex:1; height:1px; background:var(--border);"></div>
+          </div>
+          <button type="button" class="btn btn-secondary" style="width:100%; margin-top:0.75rem; display:flex; align-items:center; justify-content:center; gap:0.5rem;" onclick="openDrivePicker()">
+            <svg width="18" height="18" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
+            Import from Google Drive
+          </button>
           <div class="media-preview" id="media-preview"></div>
         </div>
       </div>
@@ -967,7 +983,8 @@
 // CONFIGURATION — paste your Google OAuth Client ID below
 // ============================================================
 const CLIENT_ID = '760474937052-9uj6q8vselcipp5buqukpqluv7nq1j1o.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.readonly';
+const PICKER_API_KEY = 'AIzaSyCel38GaktdWh-IUl7rvP9ne5OzK3xsaFc';
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 
@@ -976,8 +993,8 @@ const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 // ============================================================
 let entries = [];
 let currentFiles = [];
-let selectedMood = '';
-let currentFilter = 'all';
+let selectedMoods = [];
+let activeFilters = [];
 let currentView = 'card';
 let editingEntryId = null;
 
@@ -1409,11 +1426,14 @@ function openEntryFromGallery(id, event) {
 
 function renderEntries() {
   const list = document.getElementById('entries-list');
-  let filtered = currentFilter === 'all' ? entries : entries.filter(e => e.mood === currentFilter);
+  let filtered = activeFilters.length === 0 ? entries : entries.filter(e => {
+    const entryMoods = e.mood.split(', ');
+    return activeFilters.some(f => entryMoods.includes(f));
+  });
   updateStats();
 
   if (!filtered.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📖</div><h3>No entries yet</h3><p>${currentFilter !== 'all' ? 'No entries for this mood.' : 'Start writing your first diary entry!'}</p><button class="btn btn-primary" onclick="showPage('new', document.getElementById('tab-new'))">Write First Entry</button></div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📖</div><h3>No entries yet</h3><p>${activeFilters.length > 0 ? 'No entries for this mood.' : 'Start writing your first diary entry!'}</p><button class="btn btn-primary" onclick="showPage('new', document.getElementById('tab-new'))">Write First Entry</button></div>`;
     return;
   }
 
@@ -1532,9 +1552,26 @@ function updateFilterNav() {
 }
 
 function filterEntries(mood, btn) {
-  currentFilter = mood;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  if (mood === 'all') {
+    activeFilters = [];
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  } else {
+    // Deactivate "All" button
+    document.querySelector('.filter-btn').classList.remove('active');
+    const idx = activeFilters.indexOf(mood);
+    if (idx === -1) {
+      activeFilters.push(mood);
+      btn.classList.add('active');
+    } else {
+      activeFilters.splice(idx, 1);
+      btn.classList.remove('active');
+      // If nothing selected, revert to "All"
+      if (activeFilters.length === 0) {
+        document.querySelector('.filter-btn').classList.add('active');
+      }
+    }
+  }
   renderEntries();
 }
 
@@ -1543,9 +1580,14 @@ function filterEntries(mood, btn) {
 // ============================================================
 
 function selectMood(btn, mood) {
-  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  selectedMood = mood;
+  const idx = selectedMoods.indexOf(mood);
+  if (idx === -1) {
+    selectedMoods.push(mood);
+    btn.classList.add('selected');
+  } else {
+    selectedMoods.splice(idx, 1);
+    btn.classList.remove('selected');
+  }
 }
 
 function handleFiles(input) {
@@ -1667,7 +1709,7 @@ async function saveEntry() {
       if (idx !== -1) {
         const files = currentFiles.map(f => ({ name: f.name, type: f.type, driveFileId: f.driveFileId, objectUrl: f.objectUrl, data: f.data }));
         await uploadMediaFiles(editingEntryId, files);
-        entries[idx] = { ...entries[idx], title, date, text, mood: selectedMood || '—', files };
+        entries[idx] = { ...entries[idx], title, date, text, mood: selectedMoods.length ? selectedMoods.join(', ') : '—', files };
       }
       await saveEntriesToDrive();
       clearForm();
@@ -1676,7 +1718,7 @@ async function saveEntry() {
       const id = Date.now();
       const files = currentFiles.map(f => ({ name: f.name, type: f.type, driveFileId: f.driveFileId, objectUrl: f.objectUrl, data: f.data }));
       await uploadMediaFiles(id, files);
-      entries.unshift({ id, title, date, text, mood: selectedMood || '—', files });
+      entries.unshift({ id, title, date, text, mood: selectedMoods.length ? selectedMoods.join(', ') : '—', files });
       await saveEntriesToDrive();
       clearForm();
       showToast('Entry saved beautifully ✨');
@@ -1699,9 +1741,9 @@ function editEntry(id) {
   document.getElementById('entry-title').value = e.title;
   document.getElementById('entry-date').value = e.date;
   document.getElementById('entry-text').value = e.text;
-  selectedMood = e.mood;
+  selectedMoods = e.mood === '—' ? [] : e.mood.split(', ');
   document.querySelectorAll('.mood-btn').forEach(b => {
-    b.classList.toggle('selected', b.textContent.trim() === e.mood);
+    b.classList.toggle('selected', selectedMoods.includes(b.textContent.trim()));
   });
   currentFiles = (e.files || []).map(f => ({ ...f }));
   renderFilePreviews();
@@ -1730,7 +1772,7 @@ function clearForm() {
   document.getElementById('media-preview').innerHTML = '';
   document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
   currentFiles = [];
-  selectedMood = '';
+  selectedMoods = [];
   document.querySelector('.entry-card-header h2').textContent = "Today's Entry";
   document.getElementById('entry-save-btn').textContent = '💾 Save Entry';
   updateEntryCardHeader();
@@ -1892,6 +1934,82 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+
+// ============================================================
+// GOOGLE DRIVE PICKER
+// ============================================================
+
+let _gapiPickerReady = false;
+
+function _loadPickerApi() {
+  return new Promise((resolve, reject) => {
+    if (_gapiPickerReady) { resolve(); return; }
+    const tryLoad = () => {
+      if (!window.gapi) { setTimeout(tryLoad, 100); return; }
+      gapi.load('picker', { callback: () => { _gapiPickerReady = true; resolve(); }, onerror: reject });
+    };
+    tryLoad();
+  });
+}
+
+async function openDrivePicker() {
+  let token;
+  try {
+    token = await getToken(false);
+  } catch {
+    try { token = await getToken(true); } catch {
+      showToast('Please sign in with Google first 🔑');
+      return;
+    }
+  }
+
+  try {
+    await _loadPickerApi();
+  } catch {
+    showToast("Couldn't load the Drive Picker. Please try again.");
+    return;
+  }
+
+  const view = new google.picker.DocsView()
+    .setIncludeFolders(false)
+    .setMimeTypes('image/jpeg,image/png,image/gif,image/webp,image/heic,video/mp4,video/quicktime,video/webm,application/pdf');
+
+  const picker = new google.picker.PickerBuilder()
+    .addView(view)
+    .addView(new google.picker.DocsUploadView())
+    .setOAuthToken(token)
+    .setCallback(_onPickerResult)
+    .enableFeature(google.picker.Feature.MULTISELECT_ENABLED);
+
+  if (PICKER_API_KEY) picker.setDeveloperKey(PICKER_API_KEY);
+
+  picker.build().setVisible(true);
+}
+
+async function _onPickerResult(data) {
+  if (data.action !== google.picker.Action.PICKED) return;
+  const docs = data[google.picker.Response.DOCUMENTS] || [];
+  showToast(`Importing ${docs.length} file${docs.length !== 1 ? 's' : ''}…`);
+
+  for (const doc of docs) {
+    try {
+      const token = await getToken(false);
+      const resp = await fetch(`${DRIVE_API}/files/${doc.id}?alt=media`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!resp.ok) { showToast(`Failed to import ${doc.name}`); continue; }
+      const blob = await resp.blob();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        currentFiles.push({ name: doc.name, type: blob.type || doc.mimeType, data: e.target.result });
+        renderFilePreviews();
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      showToast(`Couldn't import ${doc.name}`);
+    }
+  }
+}
 
 // ============================================================
 // BOOT
