@@ -831,6 +831,15 @@
           <button class="filter-btn" onclick="filterEntries('🌩️ Anxious', this)">🌩️ Anxious</button>
           <button class="filter-btn" onclick="filterEntries('🌧️ Sad', this)">🌧️ Sad</button>
           <button class="filter-btn" onclick="filterEntries('😤 Angry', this)">😤 Angry</button>
+          <button class="filter-btn" onclick="filterEntries('🧐 Curious', this)">🧐 Curious</button>
+          <button class="filter-btn" onclick="filterEntries('🎉 Social', this)">🎉 Social</button>
+          <button class="filter-btn" onclick="filterEntries('🐚 Introverted', this)">🐚 Introverted</button>
+          <button class="filter-btn" onclick="filterEntries('🤫 Quiet', this)">🤫 Quiet</button>
+          <button class="filter-btn" onclick="filterEntries('🤪 Weird', this)">🤪 Weird</button>
+          <button class="filter-btn" onclick="filterEntries('😟 Concerned', this)">😟 Concerned</button>
+          <button class="filter-btn" onclick="filterEntries('💡 Enlightened', this)">💡 Enlightened</button>
+          <button class="filter-btn" onclick="filterEntries('😔 Guilty', this)">😔 Guilty</button>
+          <button class="filter-btn" onclick="filterEntries('💗 Love', this)">💗 Love</button>
         </div>
       </div>
       <button class="filter-nav-btn" id="filter-next" onclick="scrollFilters(1)">›</button>
@@ -898,6 +907,15 @@
             <button class="mood-btn" onclick="selectMood(this, '🌧️ Sad')">🌧️ Sad</button>
             <button class="mood-btn" onclick="selectMood(this, '🔥 Motivated')">🔥 Motivated</button>
             <button class="mood-btn" onclick="selectMood(this, '😤 Angry')">😤 Angry</button>
+            <button class="mood-btn" onclick="selectMood(this, '🧐 Curious')">🧐 Curious</button>
+            <button class="mood-btn" onclick="selectMood(this, '🎉 Social')">🎉 Social</button>
+            <button class="mood-btn" onclick="selectMood(this, '🐚 Introverted')">🐚 Introverted</button>
+            <button class="mood-btn" onclick="selectMood(this, '🤫 Quiet')">🤫 Quiet</button>
+            <button class="mood-btn" onclick="selectMood(this, '🤪 Weird')">🤪 Weird</button>
+            <button class="mood-btn" onclick="selectMood(this, '😟 Concerned')">😟 Concerned</button>
+            <button class="mood-btn" onclick="selectMood(this, '💡 Enlightened')">💡 Enlightened</button>
+            <button class="mood-btn" onclick="selectMood(this, '😔 Guilty')">😔 Guilty</button>
+            <button class="mood-btn" onclick="selectMood(this, '💗 Love')">💗 Love</button>
           </div>
         </div>
         <div class="field">
@@ -913,6 +931,11 @@
             <input type="file" id="file-input" multiple accept="image/*,video/*,.pdf,.doc,.docx" onchange="handleFiles(this)" />
           </div>
           <div class="media-preview" id="media-preview"></div>
+        </div>
+        <div class="field">
+          <label>Song for this memory (optional)</label>
+          <input type="text" id="entry-song" placeholder="Paste a Spotify, YouTube, or SoundCloud link…" />
+          <p style="font-size:0.78rem; margin-top:0.25rem; color:var(--text-muted)">A little player will show up when you revisit this entry 🎵</p>
         </div>
       </div>
       <div class="form-actions">
@@ -946,6 +969,10 @@
       <div class="modal-section" id="modal-media-section">
         <div class="modal-section-label">Media & Files</div>
         <div class="modal-media-grid" id="modal-media-grid"></div>
+      </div>
+      <div class="modal-section" id="modal-song-section">
+        <div class="modal-section-label">Song</div>
+        <div id="modal-song-player"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1672,6 +1699,7 @@ async function saveEntry() {
   const title = document.getElementById('entry-title').value.trim();
   const date = document.getElementById('entry-date').value;
   const text = document.getElementById('entry-text').value.trim();
+  const song = document.getElementById('entry-song').value.trim();
 
   if (!title) { showToast('Please add a title ✏️'); return; }
   if (!text && currentFiles.length === 0) { showToast('Add some writing or upload a photo/video 💭'); return; }
@@ -1699,7 +1727,7 @@ async function saveEntry() {
       if (idx !== -1) {
         const files = currentFiles.map(f => ({ name: f.name, type: f.type, driveFileId: f.driveFileId, objectUrl: f.objectUrl, data: f.data }));
         await uploadMediaFiles(editingEntryId, files);
-        entries[idx] = { ...entries[idx], title, date, text, mood: selectedMoods.length ? selectedMoods.join(', ') : '—', files };
+        entries[idx] = { ...entries[idx], title, date, text, mood: selectedMoods.length ? selectedMoods.join(', ') : '—', files, song };
       }
       await saveEntriesToDrive();
       clearForm();
@@ -1708,7 +1736,7 @@ async function saveEntry() {
       const id = Date.now();
       const files = currentFiles.map(f => ({ name: f.name, type: f.type, driveFileId: f.driveFileId, objectUrl: f.objectUrl, data: f.data }));
       await uploadMediaFiles(id, files);
-      entries.unshift({ id, title, date, text, mood: selectedMoods.length ? selectedMoods.join(', ') : '—', files });
+      entries.unshift({ id, title, date, text, mood: selectedMoods.length ? selectedMoods.join(', ') : '—', files, song });
       await saveEntriesToDrive();
       clearForm();
       showToast('Entry saved beautifully ✨');
@@ -1737,6 +1765,7 @@ function editEntry(id) {
   });
   currentFiles = (e.files || []).map(f => ({ ...f }));
   renderFilePreviews();
+  document.getElementById('entry-song').value = e.song || '';
   document.querySelector('.entry-card-header h2').textContent = 'Edit Entry';
   document.getElementById('entry-save-btn').textContent = '💾 Save Changes';
   showPage('new', document.getElementById('tab-new'));
@@ -1760,6 +1789,7 @@ function clearForm() {
   document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('entry-text').value = '';
   document.getElementById('media-preview').innerHTML = '';
+  document.getElementById('entry-song').value = '';
   document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
   currentFiles = [];
   selectedMoods = [];
@@ -1785,6 +1815,46 @@ async function deleteEntry(id) {
 // ============================================================
 // MODAL
 // ============================================================
+
+// Turns a Spotify/YouTube/SoundCloud/Apple Music link into an embedded player.
+// Returns '' if the link isn't recognised (caller falls back to a plain link).
+function songEmbedHtml(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+
+    if (host === 'open.spotify.com') {
+      const path = u.pathname.replace(/^\/(intl-[a-z]+\/)?/, '/');
+      return `<iframe style="border-radius:12px" src="https://open.spotify.com/embed${path}" width="100%" height="152" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+    }
+
+    if (host === 'youtu.be' || host === 'youtube.com' || host === 'music.youtube.com') {
+      const videoId = host === 'youtu.be' ? u.pathname.slice(1) : u.searchParams.get('v');
+      if (!videoId) return '';
+      return `<iframe width="100%" height="200" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
+    }
+
+    if (host === 'soundcloud.com') {
+      return `<iframe width="100%" height="166" frameborder="0" allow="autoplay" src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&show_comments=false" loading="lazy"></iframe>`;
+    }
+
+    if (host === 'music.apple.com') {
+      const embedUrl = url.replace('music.apple.com', 'embed.music.apple.com');
+      return `<iframe style="border-radius:12px" width="100%" height="175" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" src="${embedUrl}" loading="lazy"></iframe>`;
+    }
+  } catch { /* not a valid URL */ }
+  return '';
+}
+
+function renderSongPlayer(song) {
+  const section = document.getElementById('modal-song-section');
+  const holder = document.getElementById('modal-song-player');
+  if (!song) { section.style.display = 'none'; holder.innerHTML = ''; return; }
+  const embed = songEmbedHtml(song);
+  section.style.display = '';
+  holder.innerHTML = embed || `<a href="${escHtml(song)}" target="_blank" rel="noopener">🎵 ${escHtml(song)}</a>`;
+}
 
 function openEntry(id) {
   const e = entries.find(x => x.id === id);
@@ -1815,6 +1885,8 @@ function openEntry(id) {
   } else {
     mediaSection.style.display = 'none';
   }
+
+  renderSongPlayer(e.song);
 
   document.getElementById('modal-edit-btn').onclick = () => editEntry(id);
   document.getElementById('entry-modal').classList.add('open');
