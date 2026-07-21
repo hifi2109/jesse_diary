@@ -934,8 +934,7 @@
         </div>
         <div class="field">
           <label>Song for this memory (optional)</label>
-          <input type="text" id="entry-song" placeholder="Paste a Spotify, YouTube, or SoundCloud link…" />
-          <p style="font-size:0.78rem; margin-top:0.25rem; color:var(--text-muted)">A little player will show up when you revisit this entry 🎵</p>
+          <input type="text" id="entry-song" placeholder="Paste a Spotify or YouTube link…" />
         </div>
       </div>
       <div class="form-actions">
@@ -1335,7 +1334,85 @@ function showPage(name, tabEl, pushState = true) {
   if (name === 'entries') renderEntries();
   if (name === 'media') renderMediaGallery();
   if (name === 'message') initMessageObserver();
+  if (name === 'new') {
+    if (!editingEntryId) restoreDraftIfPresent();
+    startDraftAutosave();
+  } else {
+    stopDraftAutosave();
+  }
   if (pushState) history.pushState({ page: name }, '', '');
+}
+
+// ============================================================
+// DRAFT AUTOSAVE (localStorage — only ever keeps one draft)
+// Saves 3s after the user stops typing/editing, instead of on a fixed interval.
+// ============================================================
+const DRAFT_KEY = 'jesse_diary_draft';
+const DRAFT_IDLE_MS = 3000;
+let draftIdleTimer = null;
+const DRAFT_FIELD_IDS = ['entry-title', 'entry-date', 'entry-text', 'entry-song'];
+
+function collectDraftData() {
+  return {
+    title: document.getElementById('entry-title').value,
+    date: document.getElementById('entry-date').value,
+    text: document.getElementById('entry-text').value,
+    song: document.getElementById('entry-song').value,
+    moods: selectedMoods.slice(),
+    editingEntryId,
+    savedAt: new Date().toISOString()
+  };
+}
+
+// Overwrites the single draft slot each time, so storage never grows past one draft.
+function saveDraft() {
+  const d = collectDraftData();
+  if (!d.title && !d.text && !d.song && d.moods.length === 0) { localStorage.removeItem(DRAFT_KEY); return; }
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+}
+
+// Resets the 3s idle timer; call on every keystroke/change while the New Entry page is open.
+function scheduleDraftSave() {
+  if (draftIdleTimer) clearTimeout(draftIdleTimer);
+  draftIdleTimer = setTimeout(saveDraft, DRAFT_IDLE_MS);
+}
+
+function startDraftAutosave() {
+  stopDraftAutosave();
+  DRAFT_FIELD_IDS.forEach(id => document.getElementById(id).addEventListener('input', scheduleDraftSave));
+}
+
+function stopDraftAutosave() {
+  if (draftIdleTimer) { clearTimeout(draftIdleTimer); draftIdleTimer = null; }
+  DRAFT_FIELD_IDS.forEach(id => document.getElementById(id).removeEventListener('input', scheduleDraftSave));
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+function restoreDraftIfPresent() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return;
+  let draft;
+  try { draft = JSON.parse(raw); } catch { localStorage.removeItem(DRAFT_KEY); return; }
+  if (draft.editingEntryId) { localStorage.removeItem(DRAFT_KEY); return; }
+  const hasContent = draft.title || draft.text || draft.song || (draft.moods && draft.moods.length);
+  if (!hasContent) return;
+  const when = new Date(draft.savedAt).toLocaleString();
+  if (confirm(`Restore your unsaved draft from ${when}?`)) {
+    document.getElementById('entry-title').value = draft.title || '';
+    if (draft.date) document.getElementById('entry-date').value = draft.date;
+    document.getElementById('entry-text').value = draft.text || '';
+    document.getElementById('entry-song').value = draft.song || '';
+    selectedMoods = draft.moods || [];
+    document.querySelectorAll('.mood-btn').forEach(b => {
+      b.classList.toggle('selected', selectedMoods.includes(b.textContent.trim()));
+    });
+    updateEntryCardHeader();
+  } else {
+    localStorage.removeItem(DRAFT_KEY);
+  }
 }
 
 window.addEventListener('popstate', (e) => {
@@ -1605,6 +1682,7 @@ function selectMood(btn, mood) {
     selectedMoods.splice(idx, 1);
     btn.classList.remove('selected');
   }
+  scheduleDraftSave();
 }
 
 function handleFiles(input) {
@@ -1731,6 +1809,7 @@ async function saveEntry() {
       }
       await saveEntriesToDrive();
       clearForm();
+      clearDraft();
       showToast('Entry updated ✨');
     } else {
       const id = Date.now();
@@ -1739,6 +1818,7 @@ async function saveEntry() {
       entries.unshift({ id, title, date, text, mood: selectedMoods.length ? selectedMoods.join(', ') : '—', files, song });
       await saveEntriesToDrive();
       clearForm();
+      clearDraft();
       showToast('Entry saved beautifully ✨');
     }
     showPage('entries', document.getElementById('tab-entries'));
@@ -1784,6 +1864,7 @@ function updateEntryCardHeader() {
 }
 
 function clearForm() {
+  clearDraft();
   editingEntryId = null;
   document.getElementById('entry-title').value = '';
   document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
